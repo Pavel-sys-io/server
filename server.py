@@ -2,19 +2,18 @@ from flask import Flask, render_template, Response
 import cv2
 
 app = Flask(__name__)
-cap = cv2.VideoCapture(0)
+cap = None  
 
 def generate_frames():
+    global cap
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
-        # Преобразуем кадр в формат JPEG
         _, buffer = cv2.imencode('.jpg', frame)
         frame_bytes = buffer.tobytes()
 
-        # Отправляем кадр на веб-страницу
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n\r\n')
 
@@ -26,5 +25,20 @@ def index():
 def video_feed():
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
+def initialize_camera():
+    global cap
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        raise Exception("Could not open video device")
+
+def close_camera():
+    global cap
+    if cap:
+        cap.release()
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    try:
+        initialize_camera()
+        app.run(host='0.0.0.0', port=5000, debug=True)
+    finally:
+        close_camera()
