@@ -2,12 +2,28 @@ from flask import Flask, render_template, Response
 import cv2
 
 app = Flask(__name__)
-cap = None  
+cap = None
+
+def initialize_camera():
+    global cap
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        raise Exception("Could not open video device")
+
+def close_camera():
+    global cap
+    if cap:
+        cap.release()
 
 def generate_frames():
-    global cap
     while True:
+        # Відкриваємо камеру, робимо зйомку, потім відразу закриваємо
+        initialize_camera()
+
         ret, frame = cap.read()
+
+        close_camera()  # Відключаємо камеру після кожного кадру
+
         if not ret:
             break
 
@@ -25,20 +41,8 @@ def index():
 def video_feed():
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-def initialize_camera():
-    global cap
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        raise Exception("Could not open video device")
-
-def close_camera():
-    global cap
-    if cap:
-        cap.release()
-
 if __name__ == '__main__':
     try:
-        initialize_camera()
         app.run(host='0.0.0.0', port=5000, debug=True)
     finally:
-        close_camera()
+        close_camera()  # Make sure to release the camera when app stops
